@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cafe and Beach Day Interactive Quiz</title>
+    <style>
+        * { box-sizing: border-box; }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background-color: #f0f4f8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            overflow: hidden; 
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        /* --- TOP SECTION: Always Visible --- */
+        .top-section {
+            display: flex;
+            gap: 20px;
+            flex: 0 0 auto;
+            align-items: stretch;
+        }
+
+        .story-box {
+            flex: 3;
+            background-color: #fff;
+            padding: 12px 18px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            font-size: 15px;
+            line-height: 1.4;
+            border-top: 5px solid #e67e22;
+        }
+
+        .image-container {
+            flex: 2;
+            background-color: #e0e0e0;
+            border: 3px dashed #999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 10px;
+            color: #555;
+            font-weight: bold;
+            border-radius: 12px;
+        }
+
+        /* --- BOTTOM SECTION: Dynamic Stages --- */
+        .bottom-section {
+            flex: 1 1 auto;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            padding: 15px 20px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .stage {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: center;
+            height: 100%;
+            overflow: hidden; 
+        }
+
+        .stage.active {
+            display: flex;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 { margin-top: 0; margin-bottom: 8px; color: #2c3e50; font-size: 19px; }
+
+        /* --- CONTROLS & BUTTONS --- */
+        .action-row {
+            display: flex;
+            gap: 15px;
+            margin: 6px 0;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .action-btn {
+            padding: 8px 18px;
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+            background-color: #3498db;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .action-btn:hover:not(:disabled) { background-color: #2980b9; }
+        
+        .action-btn.mic { background-color: #e67e22; }
+        .action-btn.mic.recording { background-color: #e74c3c; animation: pulse 1.5s infinite; }
+        .action-btn.check { background-color: #9b59b6; }
+        .action-btn.check:hover:not(:disabled) { background-color: #8e44ad; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* --- SPEECH OUTPUT --- */
+        .speech-output {
+            width: 75%;
+            min-height: 135px;
+            max-height: 165px;
+            background-color: #f8f9fa;
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 14px;
+            color: #555;
+            overflow-y: auto;
+            margin-bottom: 5px;
+        }
+
+        /* --- TRANSLATION TABLE (Fixed Overlap) --- */
+        .translation-table {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 2px;
+            margin-bottom: 5px;
+            text-align: left;
+            background-color: #fdfdfd;
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            width: 85%; /* Slightly wider to give words more room */
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+        
+        .table-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Strict 50/50 columns prevent overlap */
+            gap: 15px; /* Adds space between English and Ukrainian */
+            border-bottom: 1px dashed #eee;
+            padding-bottom: 4px;
+        }
+        
+        .table-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .col-eng { font-weight: bold; color: #e74c3c; font-size: 14px; word-wrap: break-word; }
+        .col-ukr { color: #2c3e50; font-size: 14px; word-wrap: break-word; }
+
+        /* --- QUESTION STYLES --- */
+        .question-text {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #34495e;
+        }
+
+        .select-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 15px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            background-color: #fafafa;
+            cursor: pointer;
+            outline: none;
+        }
+        select:focus { border-color: #3498db; }
+
+        .feedback {
+            font-size: 16px;
+            font-weight: bold;
+            min-height: 22px;
+            margin-bottom: 5px;
+        }
+        .correct { color: #27ae60; }
+        .incorrect { color: #e74c3c; }
+
+        /* --- NEXT BUTTON --- */
+        .next-btn {
+            padding: 10px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #2ecc71;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: auto; 
+            margin-bottom: 35px; 
+        }
+        .next-btn:hover:not(:disabled) { background-color: #27ae60; }
+        .next-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- TOP SECTION: Story & Image -->
+    <div class="top-section">
+        <div class="story-box" id="original-story">
+            <p style="margin:0;">Sheldon, Leonard, and Penny go to a nice cafe on Sunday morning. Penny orders a large cup of hot coffee and a sweet chocolate cake. Sheldon asks for green tea, but it must be in his favorite cup. Leonard wants a cold drink, so he buys fresh orange juice. After the cafe, they decide to visit the beach. First, they walk to the train station and buy three train tickets. Then, they take the train to the sea and have a great day.</p>
+        </div>
+        <div class="image-container">
+            [ Place image here ]<br><br>
+            &lt;img src="link" style="max-width:100%; max-height:100px;"&gt;
+        </div>
+    </div>
+
+    <!-- BOTTOM SECTION: Dynamic Stages -->
+    <div class="bottom-section">
+
+        <!-- SECTION 1: Audio -->
+        <div id="section-1" class="stage active">
+            <h2>Step 1: Listen to the story</h2>
+            <audio id="story-audio" src="YOUR_MP3_LINK_HERE.mp3"></audio>
+            
+            <button id="play-btn" class="action-btn" onclick="playAudio()">▶️ Play Audio</button>
+            <div id="audio-status" class="feedback"></div>
+            
+            <button id="next-1" class="next-btn" disabled onclick="nextSection(2)">Next ➡️</button>
+        </div>
+
+        <!-- SECTION 2: Speech to Text -->
+        <div id="section-2" class="stage">
+            <h2>Step 2: Read the story aloud</h2>
+            
+            <div class="action-row">
+                <button id="mic-btn" class="action-btn mic">🎙️ Click to Start Reading</button>
+                <button id="check-reading-btn" class="action-btn check" onclick="checkReading()">✅ Check Reading</button>
+            </div>
+            
+            <div id="speech-output" class="speech-output">Your words will appear here...</div>
+            <div id="reading-feedback" class="feedback"></div>
+            
+            <button id="next-2" class="next-btn" disabled onclick="nextSection(3)">Next ➡️</button>
+        </div>
+
+        <!-- SECTION 3: Question 1 -->
+        <div id="section-3" class="stage">
+            <h2 style="visibility:hidden; height:0; margin:0;">Q1</h2>
+            <div class="question-text">Question 1: What does Penny order at the cafe?</div>
+            <div class="select-group">
+                <select id="q1-p1" onchange="checkAnswer('q1', 3, 'next-3')">
+                    <option value="">-- Who? --</option>
+                    <option value="correct">Penny</option>
+                    <option value="wrong">Sheldon</option>
+                    <option value="wrong">Leonard</option>
+                </select>
+                <select id="q1-p2" onchange="checkAnswer('q1', 3, 'next-3')">
+                    <option value="">-- Action --</option>
+                    <option value="correct">orders</option>
+                    <option value="wrong">order</option>
+                    <option value="wrong">ordering</option>
+                </select>
+                <select id="q1-p3" onchange="checkAnswer('q1', 3, 'next-3')">
+                    <option value="">-- What? --</option>
+                    <option value="correct">hot coffee and chocolate cake.</option>
+                    <option value="wrong">green tea and orange juice.</option>
+                    <option value="wrong">three train tickets.</option>
+                </select>
+            </div>
+            <div id="q1-feedback" class="feedback"></div>
+            <button id="next-3" class="next-btn" disabled onclick="nextSection(4)">Next ➡️</button>
+        </div>
+
+        <!-- SECTION 4: Question 2 -->
+        <div id="section-4" class="stage">
+            <h2 style="visibility:hidden; height:0; margin:0;">Q2</h2>
+            <div class="question-text">Question 2: What does Leonard buy to drink?</div>
+            <div class="select-group">
+                <select id="q2-p1" onchange="checkAnswer('q2', 3, 'next-4')">
+                    <option value="">-- Who? --</option>
+                    <option value="correct">Leonard</option>
+                    <option value="wrong">Penny</option>
+                    <option value="wrong">Sheldon</option>
+                </select>
+                <select id="q2-p2" onchange="checkAnswer('q2', 3, 'next-4')">
+                    <option value="">-- Action --</option>
+                    <option value="correct">buys</option>
+                    <option value="wrong">buy</option>
+                    <option value="wrong">buying</option>
+                </select>
+                <select id="q2-p3" onchange="checkAnswer('q2', 3, 'next-4')">
+                    <option value="">-- What? --</option>
+                    <option value="correct">fresh orange juice.</option>
+                    <option value="wrong">hot coffee.</option>
+                    <option value="wrong">green tea.</option>
+                </select>
+            </div>
+            <div id="q2-feedback" class="feedback"></div>
+            <button id="next-4" class="next-btn" disabled onclick="nextSection(5)">Next ➡️</button>
+        </div>
+
+        <!-- SECTION 5: Question 3 -->
+        <div id="section-5" class="stage">
+            <h2 style="visibility:hidden; height:0; margin:0;">Q3</h2>
+            <div class="question-text">Question 3: How many train tickets do the friends buy?</div>
+            <div class="select-group">
+                <select id="q3-p1" onchange="checkAnswer('q3', 3, 'next-5')">
+                    <option value="">-- Who? --</option>
+                    <option value="correct">They</option>
+                    <option value="wrong">He</option>
+                    <option value="wrong">She</option>
+                </select>
+                <select id="q3-p2" onchange="checkAnswer('q3', 3, 'next-5')">
+                    <option value="">-- Action --</option>
+                    <option value="correct">buy</option>
+                    <option value="wrong">buys</option>
+                    <option value="wrong">bought</option>
+                </select>
+                <select id="q3-p3" onchange="checkAnswer('q3', 3, 'next-5')">
+                    <option value="">-- How many? --</option>
+                    <option value="correct">three train tickets.</option>
+                    <option value="wrong">two train tickets.</option>
+                    <option value="wrong">four train tickets.</option>
+                </select>
+            </div>
+            <div id="q3-feedback" class="feedback"></div>
+            <button id="next-5" class="next-btn" disabled onclick="nextSection(6)">Next ➡️</button>
+        </div>
+
+        <!-- SECTION 6: Question 4 -->
+        <div id="section-6" class="stage">
+            <h2 style="visibility:hidden; height:0; margin:0;">Q4</h2>
+            <div class="question-text">Question 4: Where do they go by train after the cafe?</div>
+            <div class="select-group">
+                <select id="q4-p1" onchange="checkAnswer('q4', 3, 'next-6')">
+                    <option value="">-- Who? --</option>
+                    <option value="correct">They</option>
+                    <option value="wrong">Penny</option>
+                    <option value="wrong">Sheldon</option>
+                </select>
+                <select id="q4-p2" onchange="checkAnswer('q4', 3, 'next-6')">
+                    <option value="">-- Action --</option>
+                    <option value="correct">go</option>
+                    <option value="wrong">goes</option>
+                    <option value="wrong">going</option>
+                </select>
+                <select id="q4-p3" onchange="checkAnswer('q4', 3, 'next-6')">
+                    <option value="">-- Where? --</option>
+                    <option value="correct">to the beach.</option>
+                    <option value="wrong">to the shop.</option>
+                    <option value="wrong">to school.</option>
+                </select>
+            </div>
+            <div id="q4-feedback" class="feedback"></div>
+            <button id="next-6" class="next-btn" disabled onclick="finishQuiz()">Finish 🎉</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- NAVIGATION LOGIC ---
+    function nextSection(sectionNum) {
+        const stages = document.querySelectorAll('.stage');
+        stages.forEach(stage => stage.classList.remove('active'));
+        document.getElementById('section-' + sectionNum).classList.add('active');
+    }
+
+    function finishQuiz() {
+        alert("Fantastic job! You completed all the tasks! 🎉");
+    }
+
+    // --- SECTION 1: AUDIO LOGIC ---
+    const audioEl = document.getElementById('story-audio');
+    const playBtn = document.getElementById('play-btn');
+    const audioStatus = document.getElementById('audio-status');
+    const nextBtn1 = document.getElementById('next-1');
+
+    function playAudio() {
+        if (!audioEl.src || audioEl.src.includes("YOUR_MP3_LINK_HERE")) {
+            audioStatus.innerHTML = "⚠️ Please add a valid MP3 link in the HTML code.";
+            audioStatus.className = "feedback incorrect";
+            nextBtn1.disabled = false; 
+            return;
+        }
+
+        audioEl.play();
+        playBtn.innerText = "⏸️ Playing...";
+        audioStatus.innerHTML = "Listen closely! The 'Next' button will unlock when the story ends.";
+        audioStatus.className = "feedback";
+    }
+
+    audioEl.onended = function() {
+        playBtn.innerText = "▶️ Play Again";
+        audioStatus.innerHTML = "Great job listening! You can go to the next step.";
+        audioStatus.className = "feedback correct";
+        nextBtn1.disabled = false; 
+    };
+
+    // --- SECTION 2: SPEECH RECOGNITION & CHECKING LOGIC ---
+    const micBtn = document.getElementById('mic-btn');
+    const checkBtn = document.getElementById('check-reading-btn');
+    const speechOutput = document.getElementById('speech-output');
+    const readingFeedback = document.getElementById('reading-feedback');
+    const nextBtn2 = document.getElementById('next-2');
+    
+    const originalText = "Sheldon, Leonard, and Penny go to a nice cafe on Sunday morning. Penny orders a large cup of hot coffee and a sweet chocolate cake. Sheldon asks for green tea, but it must be in his favorite cup. Leonard wants a cold drink, so he buys fresh orange juice. After the cafe, they decide to visit the beach. First, they walk to the train station and buy three train tickets. Then, they take the train to the sea and have a great day.";
+    
+    const ukrainianDict = {
+        "and": "і / та",
+        "go": "йдуть",
+        "to": "до / в",
+        "nice": "гарне",
+        "cafe": "кафе",
+        "on": "у / в",
+        "sunday": "неділю",
+        "morning": "ранку",
+        "orders": "замовляє",
+        "large": "велика",
+        "cup": "чашка",
+        "hot": "гаряча",
+        "coffee": "кава",
+        "sweet": "солодкий",
+        "chocolate": "шоколадний",
+        "cake": "торт / тістечко",
+        "asks": "просить",
+        "for": "для / за",
+        "green": "зелений",
+        "tea": "чай",
+        "but": "але",
+        "it": "воно",
+        "must": "повинно",
+        "be": "бути",
+        "in": "в",
+        "his": "його",
+        "favorite": "улюблена",
+        "wants": "хоче",
+        "cold": "холодний",
+        "drink": "напій",
+        "so": "тому",
+        "he": "він",
+        "buys": "купує",
+        "fresh": "свіжий",
+        "orange": "апельсиновий",
+        "juice": "сік",
+        "after": "після",
+        "decide": "вирішують",
+        "visit": "відвідати",
+        "beach": "пляж",
+        "first": "спочатку",
+        "they": "вони",
+        "walk": "йдуть пішки",
+        "train": "потяг",
+        "station": "станція",
+        "buy": "купують",
+        "three": "три",
+        "tickets": "квитки",
+        "then": "потім",
+        "take": "сідають на",
+        "sea": "море",
+        "have": "мають / проводять",
+        "great": "чудовий",
+        "day": "день"
+    };
+    
+    let recognition;
+    let isRecording = false;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-GB';
+
+        micBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            speechOutput.innerHTML = transcript;
+        };
+
+        recognition.onerror = (event) => {
+            speechOutput.innerHTML = 'Microphone error. Ensure you clicked "Allow".';
+            stopRecording();
+            micBtn.innerHTML = '🎙️ Try Again';
+        };
+    } else {
+        micBtn.style.display = 'none';
+        speechOutput.innerHTML = '⚠️ Speech recognition is not supported in this browser. Please use Chrome/Edge.';
+        nextBtn2.disabled = false; 
+    }
+
+    function startRecording() {
+        if (!recognition) return;
+        recognition.start();
+        micBtn.innerHTML = '🛑 Stop Recording';
+        micBtn.classList.add('recording');
+        speechOutput.innerHTML = 'Listening...';
+        readingFeedback.innerHTML = ''; 
+        isRecording = true;
+    }
+
+    function stopRecording() {
+        if (!recognition || !isRecording) return;
+        recognition.stop();
+        micBtn.innerHTML = '🎙️️ Click to Start Reading';
+        micBtn.classList.remove('recording');
+        isRecording = false;
+    }
+
+    function cleanText(text) {
+        return text.toLowerCase().replace(/[.,!?;:]/g, '');
+    }
+
+    function checkReading() {
+        stopRecording();
+
+        let transcript = speechOutput.innerText || speechOutput.textContent;
+        
+        if (transcript.includes("Your words will appear here") || transcript.trim() === "" || transcript === "Listening...") {
+            readingFeedback.innerHTML = "Please read the text first before checking! ❌";
+            readingFeedback.className = "feedback incorrect";
+            return;
+        }
+
+        micBtn.disabled = true;
+        micBtn.style.opacity = '0.5';
+        micBtn.style.cursor = 'not-allowed';
+        micBtn.innerHTML = '🎙 Microphone Disabled';
+
+        checkBtn.disabled = true;
+        checkBtn.style.opacity = '0.5';
+        checkBtn.style.cursor = 'not-allowed';
+
+        let origWords = cleanText(originalText).split(/\s+/);
+        let transWords = cleanText(transcript).split(/\s+/);
+        
+        let missing = [];
+        let ignoredWords = ["a", "the", "sheldon", "leonard", "penny"];
+        
+        for(let w of origWords) {
+            if(!transWords.includes(w) && !missing.includes(w) && w.trim() !== "" && !ignoredWords.includes(w)) {
+                missing.push(w);
+            }
+        }
+
+        if(missing.length > 0) {
+            let top5 = missing.slice(0, 5);
+            
+            let tableHTML = "<div style='font-size: 14px; margin-bottom: 2px; color: #555;'>Read these words again:</div>";
+            tableHTML += "<div class='translation-table'>";
+            
+            for(let word of top5) {
+                let translation = ukrainianDict[word] || "Переклад відсутній";
+                tableHTML += `<div class='table-row'><span class='col-eng'>${word}</span><span class='col-ukr'>${translation}</span></div>`;
+            }
+            tableHTML += "</div>";
+            
+            readingFeedback.innerHTML = tableHTML;
+            readingFeedback.className = ""; 
+        } else {
+            readingFeedback.innerHTML = "Perfect reading! Fantastic job! 🎉";
+            readingFeedback.className = "feedback correct";
+        }
+        
+        nextBtn2.disabled = false;
+    }
+
+    // --- SECTION 3 to 6: QUESTION LOGIC ---
+    function checkAnswer(questionId, parts, nextButtonId) {
+        let isCorrect = true;
+        let isComplete = true;
+
+        for (let i = 1; i <= parts; i++) {
+            let selectElement = document.getElementById(questionId + '-p' + i);
+            if (selectElement.value === "") {
+                isComplete = false;
+            } else if (selectElement.value !== "correct") {
+                isCorrect = false;
+            }
+        }
+
+        let feedbackElement = document.getElementById(questionId + '-feedback');
+        let nextBtn = document.getElementById(nextButtonId);
+        
+        if (!isComplete) {
+            feedbackElement.innerHTML = "";
+            feedbackElement.className = "feedback";
+            nextBtn.disabled = true;
+        } else if (isCorrect) {
+            feedbackElement.innerHTML = "Perfect! 🎉";
+            feedbackElement.className = "feedback correct";
+            nextBtn.disabled = false; 
+        } else {
+            feedbackElement.innerHTML = "Not quite right. Fix your mistakes! ❌";
+            feedbackElement.className = "feedback incorrect";
+            nextBtn.disabled = true;
+        }
+    }
+</script>
+
+</body>
+</html>
